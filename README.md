@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2022 Floyxofficial
+Copyright (c) 2023 Floyxofficial
 
 ### Website : https://www.floyx.com 
 
