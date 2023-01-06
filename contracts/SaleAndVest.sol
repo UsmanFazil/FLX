@@ -134,7 +134,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
 
     function claimTokens()public{
         require(block.timestamp > lockPeriod, "Crowdsale: Can not claim during lock period");
-        require(claimCount[msg.sender] < 13, "Crowdsale: No more claims left");
+        require(claimCount[msg.sender] < 12, "Crowdsale: No more claims left");
 
         // uint256 monthDiff = (block.timestamp.sub(lockPeriod)).div(30 days);
         uint256 monthDiff = (block.timestamp.sub(lockPeriod)).div(3600);
@@ -143,14 +143,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
 
         for(uint i = claimCount[msg.sender]; i < monthDiff; i ++){
             claimCount[msg.sender] += 1;
-            uint256 tokenAmount = (totalTokensPurchased[msg.sender].mul(6).div(100));   // release 6% of the tokens
-            tokenAmount = tokenAmount.add(tokenAmount.mul(2).div(100));                 // extra 2% reward on every claim
-            _token.transfer(msg.sender, tokenAmount);
-        }
-
-        if (claimCount[msg.sender] == 12 && monthDiff == 12){
-            claimCount[msg.sender] += 1;
-            uint256 tokenAmount = (totalTokensPurchased[msg.sender].mul(8).div(100));   // release 8% of the tokens
+            uint256 tokenAmount = (totalTokensPurchased[msg.sender].mul(75).div(1000));   // release 7.5% of the tokens
             tokenAmount = tokenAmount.add(tokenAmount.mul(2).div(100));                 // extra 2% reward on every claim
             _token.transfer(msg.sender, tokenAmount);
         }
@@ -173,7 +166,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
         require(totalTokensPurchased[beneficiary].add(tokenAmount) <= userTokenLimit, "User max allocation limit reached");
         
         soldTokens = soldTokens.add(tokenAmount);
-        _token.transfer(beneficiary, (tokenAmount.mul(20).div(100)));
+        _token.transfer(beneficiary, (tokenAmount.mul(10).div(100)));
         totalTokensPurchased[beneficiary] = totalTokensPurchased[beneficiary].add(tokenAmount);
     }
     
