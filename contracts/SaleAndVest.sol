@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
-import "./IERC20.sol";
-import "./ReentrancyGuard.sol";
-import "./SafeMath.sol";
-import "./Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./access/AccessProtected.sol";
+import "./IFloyx.sol";
 
-// TODO : add limit on each user (min number of tokens a user can buy) 
-
-contract SaleAndVest is ReentrancyGuard, Ownable {
+contract SaleAndVest is ReentrancyGuard, AccessProtected {
     
     using SafeMath for uint256;
-    IERC20 internal _token;
+    IFloyx internal _token;
     IERC20 internal _usdc;
     IERC20 internal _usdt;
     
@@ -39,7 +38,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
         weiRate = rate_;
         usdRate = usdRate_;
         _wallet = payable(adminWallet);
-        _token = IERC20(token_);
+        _token = IFloyx(token_);
         _usdc = IERC20(usdc);
         _usdt = IERC20(usdt);
         crowdsaleFinalized = false;
@@ -51,7 +50,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
     /**
      * @return the token being sold.
      */
-    function token() public view returns (IERC20) {
+    function token() public view returns (IFloyx) {
         return _token;
     }
 
@@ -91,12 +90,10 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
     /**
      * @dev This function has a non-reentrancy guard, so it shouldn't be called by
      * another `nonReentrant` function.
-     * @param beneficiary Recipient of the token purchase
      */
-    function buyTokens(address beneficiary) public nonReentrant payable {
+    function buyTokens() public nonReentrant payable {
         
         require(!crowdsaleFinalized,"Crowdsale is finalized!");
-        require(beneficiary != address(0), "Crowdsale: beneficiary is the zero address");
         require(msg.value != 0, "Crowdsale: weiAmount is 0");
         
         uint256 weiAmount = msg.value;
@@ -104,55 +101,57 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
 
         weiRaised = weiRaised.add(weiAmount);
         _processPayment(_wallet, msg.value);
-        _processPurchase(beneficiary, tokens);
+        _processPurchase(msg.sender, tokens);
         
-        emit TokensPurchased(msg.sender, beneficiary, weiAmount, tokens);
+        emit TokensPurchased(msg.sender, msg.sender, weiAmount, tokens);
 
     }
 
     /**
      * @dev This function has a non-reentrancy guard, so it shouldn't be called by
      * another `nonReentrant` function.
-     * @param beneficiary Recipient of the token purchase
      * @param usdAmount_ amount of usdc or usdt tokens used to buy floyx.
      * @param usdc boolean variable to check payment will be in usdc or usdt
      */
-    function buyTokenswithUsd(address beneficiary, uint256 usdAmount_,bool usdc, bool usdt) public nonReentrant {
+    function buyTokenswithUsd(uint256 usdAmount_,bool usdc, bool usdt) public nonReentrant {
         require(usdc != usdt , "Crowdsale: One of the value should be passed true");
         require(usdAmount_ > 0 , "Crowdsale: UsdAmount is 0");
         require(!crowdsaleFinalized,"Crowdsale is finalized!");
-        require(beneficiary != address(0), "Crowdsale: beneficiary is the zero address");
 
         uint256 tokens = _getTokenAmount(usdAmount_, false);
         usdRaised = usdRaised.add(usdAmount_);
 
         usdc ? _usdc.transferFrom(msg.sender, address(this), usdAmount_) : _usdt.transferFrom(msg.sender, address(this), usdAmount_);
-        _processPurchase(beneficiary, tokens);
+        _processPurchase(msg.sender, tokens);
         
-        emit TokensPurchased(msg.sender, beneficiary, usdAmount_, tokens);
+        emit TokensPurchased(msg.sender, msg.sender, usdAmount_, tokens);
     }
 
     function claimTokens()public{
         require(block.timestamp > lockPeriod, "Crowdsale: Can not claim during lock period");
-        require(claimCount[msg.sender] < 12, "Crowdsale: No more claims left");
+        require(claimCount[msg.sender] < 13, "Crowdsale: No more claims left");
 
         // uint256 monthDiff = (block.timestamp.sub(lockPeriod)).div(30 days);
         uint256 monthDiff = (block.timestamp.sub(lockPeriod)).div(3600);
         require(monthDiff > claimCount[msg.sender], "Crowdsale: Nothing to claim yet");
-        if (monthDiff > 12){ monthDiff = 12;}
+        if (monthDiff > 13){ monthDiff = 13;}
+
+        if (claimCount[msg.sender] == 0){
+            _token.mint(msg.sender, totalTokensPurchased[msg.sender].mul(10).div(100) );
+            claimCount[msg.sender] = 1;
+        }
 
         for(uint i = claimCount[msg.sender]; i < monthDiff; i ++){
             claimCount[msg.sender] += 1;
             uint256 tokenAmount = (totalTokensPurchased[msg.sender].mul(75).div(1000));   // release 7.5% of the tokens
             tokenAmount = tokenAmount.add(tokenAmount.mul(2).div(100));                 // extra 2% reward on every claim
-            _token.transfer(msg.sender, tokenAmount);
+            _token.mint(msg.sender, tokenAmount);
         }
         
     }
     
-    function finalizeCrowdsale() public onlyOwner{
-        require(!crowdsaleFinalized,"Crowdsale: Crowdsale is finalized!");
-        crowdsaleFinalized = true;
+    function updateCrowdsaleStatus(bool status_) public onlyOwner{
+        crowdsaleFinalized = status_;
     }
     
     /**
@@ -166,7 +165,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
         require(totalTokensPurchased[beneficiary].add(tokenAmount) <= userTokenLimit, "User max allocation limit reached");
         
         soldTokens = soldTokens.add(tokenAmount);
-        _token.transfer(beneficiary, (tokenAmount.mul(10).div(100)));
+        // _token.transfer(beneficiary, (tokenAmount.mul(10).div(100)));
         totalTokensPurchased[beneficiary] = totalTokensPurchased[beneficiary].add(tokenAmount);
     }
     
@@ -177,7 +176,7 @@ contract SaleAndVest is ReentrancyGuard, Ownable {
      */
     function _getTokenAmount(uint256 amount, bool eth) internal view returns (uint256) {
         
-        return eth ? (amount.mul(weiRate)).div(1e10) : (amount.mul(usdRate)); 
+        return eth ? amount.mul(weiRate) : amount.mul(usdRate); 
     }
     
     /**

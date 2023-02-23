@@ -20,7 +20,7 @@ const GOERLI_PRIVATE_KEY= "0dc178b655bb48f3478ebd42db1d40d9193d0ec96357ebd9ed0a5
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  solidity: "0.8.4",
+  solidity: "0.8.9",
   networks: {
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/49909763e62f4e1f947ea70b2c343db2`,
