@@ -4,8 +4,10 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./access/AccessProtected.sol";
+import "./AccessProtected.sol";
 import "./IFloyx.sol";
+
+// 3333, 2866, "0xd9145CCE52D386f254917e481eB44e9943F39138", 1000000000000000000000000, "0xd9145CCE52D386f254917e481eB44e9943F39138","0xd9145CCE52D386f254917e481eB44e9943F39138","0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",1677305407,1000000000000000000000000
 
 contract SaleAndVest is ReentrancyGuard, AccessProtected {
     
@@ -126,6 +128,12 @@ contract SaleAndVest is ReentrancyGuard, AccessProtected {
         
         emit TokensPurchased(msg.sender, msg.sender, usdAmount_, tokens);
     }
+
+    function allocateFloyxadmin(address beneficiary_, uint256 floyxAmount_)public onlyOwner{
+        require(beneficiary_ != address(0), "invalid address");
+        require(floyxAmount_ > 0 , "Invalid floyx amount");
+        _processPurchase(beneficiary_, floyxAmount_);
+    } 
 
     function claimTokens()public{
         require(block.timestamp > lockPeriod, "Crowdsale: Can not claim during lock period");
